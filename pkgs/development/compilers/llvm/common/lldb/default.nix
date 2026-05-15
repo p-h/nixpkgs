@@ -1,6 +1,7 @@
 {
   lib,
   stdenv,
+  buildPackages,
   llvm_meta,
   release_version,
   cmake,
@@ -35,6 +36,12 @@ let
     name = "lldb-dap";
     version = "0.2.0";
   };
+  tblgen = buildPackages.llvmPackages.tblgen.override {
+    targets = [
+      "lldb-tblgen"
+      "llvm-tblgen"
+    ];
+  };
 in
 
 stdenv.mkDerivation (
@@ -43,6 +50,8 @@ stdenv.mkDerivation (
     passthru.monorepoSrc = monorepoSrc;
     pname = "lldb";
     inherit version;
+
+    __structuredAttrs = true;
 
     src =
       if monorepoSrc != null then
@@ -72,6 +81,14 @@ stdenv.mkDerivation (
 
     patches = [ ./gnu-install-dirs.patch ];
 
+    postPatch = lib.optionalString (stdenv.hostPlatform != stdenv.buildPlatform) ''
+      # The cpython setup-hook correctly sets the _PYTHON_SYSCONFIGDATA_NAME
+      # and _PYTHON_HOST_PLATFORM environment variables so the script which
+      # interogates sysconfig works correctly in the cross environment
+      substituteInPlace CMakeLists.txt \
+        --replace-fail 'NOT DEFINED ''${var} AND NOT CMAKE_CROSSCOMPILING' 'NOT DEFINED ''${var}'
+    '';
+
     nativeBuildInputs = [
       cmake
       ninja
@@ -88,6 +105,7 @@ stdenv.mkDerivation (
     ];
 
     buildInputs = [
+      python3
       ncurses
       zlib
       libedit
@@ -131,6 +149,10 @@ stdenv.mkDerivation (
     ++ lib.optionals finalAttrs.finalPackage.doCheck [
       (lib.cmakeFeature "LLDB_TEST_C_COMPILER" "${stdenv.cc}/bin/${stdenv.cc.targetPrefix}cc")
       (lib.cmakeFeature "-DLLDB_TEST_CXX_COMPILER" "${stdenv.cc}/bin/${stdenv.cc.targetPrefix}c++")
+    ]
+    ++ lib.optionals (stdenv.hostPlatform != stdenv.buildPlatform) [
+      (lib.cmakeFeature "LLVM_TABLEGEN" "${tblgen}/bin/llvm-tblgen")
+      (lib.cmakeFeature "LLDB_TABLEGEN_EXE" "${tblgen}/bin/lldb-tblgen")
     ]
     ++ devExtraCmakeFlags;
 
