@@ -38,6 +38,7 @@ let
   };
   tblgen = buildPackages.llvmPackages.tblgen.override {
     targets = [
+      "clang-tblgen"
       "lldb-tblgen"
       "llvm-tblgen"
     ];

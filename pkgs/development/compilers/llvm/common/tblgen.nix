@@ -45,6 +45,7 @@ let
   # build time. This is only tablegen and related tooling, which are cheap
   # to build.
   inherit (lib)
+    concatMap
     concatStringsSep
     lessThan
     sort
@@ -56,15 +57,18 @@ let
   targetsSorted = sort lessThan targets;
 
   targetsToProject = {
-    "clang-tblgen" = "clang";
-    "lldb-tblgen" = "lldb";
-    "llvm-tblgen" = "llvm";
-    "mlir-tblgen" = "mlir";
-    "clang-pseudo-gen" = "clang-tools-extra";
-    "clang-tidy-confusable-chars-gen" = "clang-tools-extra";
+    "clang-tblgen" = [ "clang" ];
+    "lldb-tblgen" = [
+      "clang"
+      "lldb"
+    ];
+    "llvm-tblgen" = [ "llvm" ];
+    "mlir-tblgen" = [ "mlir" ];
+    "clang-pseudo-gen" = [ "clang-tools-extra" ];
+    "clang-tidy-confusable-chars-gen" = [ "clang-tools-extra" ];
   };
 
-  projects = unique (sort lessThan (map (t: targetsToProject."${t}") targetsSorted));
+  projects = unique (sort lessThan (concatMap (t: targetsToProject."${t}") targetsSorted));
 
   src' =
     if monorepoSrc != null then
